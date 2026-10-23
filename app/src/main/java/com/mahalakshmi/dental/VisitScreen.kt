@@ -81,14 +81,15 @@ import kotlin.math.hypot
 import kotlin.math.sin
 
 val treatmentOptions = listOf(
-    "Checkup", "Cleaning", "Scaling", "Filling", "Root Canal", "Extraction", "Crown / Cap",
-    "Bridge", "Braces", "Implant", "Denture", "Whitening", "X-Ray", "Pain Relief"
+    "Checkup", "Cleaning", "Filling", "Root Canal", "Extraction",
+    "Crown / Cap", "Braces", "Implant", "Denture", "X-Ray"
 )
 
 // ───────────── New / edit visit ─────────────
 @Composable
 fun VisitFormScreen(db: ClinicDb, visitId: Long, patientId: Long, onBack: () -> Unit) {
     val context = LocalContext.current
+    val notify = LocalNotify.current
     val scope = rememberCoroutineScope()
     val existing = remember { if (visitId != 0L) db.getVisit(visitId) else null }
     val patientName = remember { db.getPatient(patientId)?.name ?: "" }
@@ -162,32 +163,28 @@ fun VisitFormScreen(db: ClinicDb, visitId: Long, patientId: Long, onBack: () -> 
         )
         removedPhotos.forEach { File(it).delete() }
         saved = true
+        DataBus.changed()
+        notify(if (existing == null) "Visit saved ✓" else "Changes saved ✓")
         onBack()
     }
 
-    Column(Modifier.fillMaxSize().background(Brand.Bg).imePadding()) {
-        AppTopBar(if (existing == null) "New Visit" else "Edit Visit", patientName, onBack)
-        Column(
-            Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            // Visit date
-            AppCard(Modifier.fillMaxWidth(), onClick = { pickDateFor = "visit" }, padding = 14.dp) {
+    BoxWithConstraints(Modifier.fillMaxSize().background(Brand.Bg)) {
+        val twoColumn = maxWidth >= 760.dp
+
+        val dateCard: @Composable () -> Unit = {
+            AppCard(Modifier.fillMaxWidth(), onClick = { pickDateFor = "visit" }, padding = 16.dp) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        Modifier.size(42.dp).clip(RoundedCornerShape(13.dp)).background(Brand.Mint),
-                        contentAlignment = Alignment.Center
-                    ) { Icon(Icons.Filled.DateRange, null, tint = Brand.Primary, modifier = Modifier.size(20.dp)) }
-                    Spacer(Modifier.width(12.dp))
+                    IconBadge(Icons.Filled.DateRange, Brand.GreenDeep, Brand.GreenSoft, 44.dp)
+                    Spacer(Modifier.width(14.dp))
                     Column(Modifier.weight(1f)) {
                         Text("Visit date", fontSize = 12.sp, color = Brand.Sub)
                         Text(fmtDayLong(epochDayOf(date)), fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = Brand.Ink)
                     }
-                    Icon(Icons.Filled.Edit, null, tint = Brand.Primary, modifier = Modifier.size(18.dp))
+                    Icon(Icons.Filled.Edit, null, tint = Brand.GreenDeep, modifier = Modifier.size(18.dp))
                 }
             }
-
-            // Treatment
+        }
+        val treatmentCard: @Composable () -> Unit = {
             FormCard("Treatment", "Tap all that apply") {
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     (treatmentOptions + treatments.filter { it !in treatmentOptions }).forEach { t ->
@@ -206,34 +203,38 @@ fun VisitFormScreen(db: ClinicDb, visitId: Long, patientId: Long, onBack: () -> 
                             if (t.isNotEmpty() && t !in treatments) treatments.add(t)
                             otherTreatment = ""
                         },
-                        bg = Brand.Mint, tint = Brand.Primary, size = 52.dp
+                        bg = Brand.GreenSoft, tint = Brand.GreenDeep, size = 54.dp
                     )
                 }
             }
-
-            // Teeth
-            FormCard("Teeth", if (teeth.isEmpty()) "Optional – mark the teeth being treated" else "${teeth.size} selected") {
+        }
+        val teethCard: @Composable () -> Unit = {
+            FormCard("Teeth", if (teeth.isEmpty()) "Optional – tap the teeth being treated" else "${teeth.size} selected") {
                 if (teeth.isNotEmpty()) {
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        teeth.sortedBy { it.toIntOrNull() ?: 0 }.forEach { Pill("Tooth $it", Brand.Mint, Brand.PrimaryDark) }
+                        teeth.sortedBy { it.toIntOrNull() ?: 0 }.forEach { Pill("Tooth $it", Brand.GreenSoft, Brand.GreenText) }
                     }
                 }
-                SoftButton(
-                    if (showChart) "Hide dental chart" else "Open dental chart",
-                    if (showChart) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
-                    Modifier.fillMaxWidth()
-                ) { showChart = !showChart }
-                AnimatedVisibility(visible = showChart, enter = expandVertically(), exit = shrinkVertically()) {
+                if (twoColumn) {
                     ToothChart(teeth) { n -> if (n in teeth) teeth.remove(n) else teeth.add(n) }
+                } else {
+                    SoftButton(
+                        if (showChart) "Hide dental chart" else "Open dental chart",
+                        if (showChart) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
+                        Modifier.fillMaxWidth()
+                    ) { showChart = !showChart }
+                    AnimatedVisibility(visible = showChart, enter = expandVertically(), exit = shrinkVertically()) {
+                        ToothChart(teeth) { n -> if (n in teeth) teeth.remove(n) else teeth.add(n) }
+                    }
                 }
             }
-
-            // Problem
+        }
+        val problemCard: @Composable () -> Unit = {
             FormCard("Problem / findings") {
-                AppField(problem, { problem = it }, "Describe the problem, diagnosis, notes", lines = 3)
+                AppField(problem, { problem = it }, "Describe the problem, diagnosis, notes", lines = 4)
             }
-
-            // Photos
+        }
+        val photosCard: @Composable () -> Unit = {
             FormCard("Photos", if (photos.isEmpty()) "Add clear photos of the problem" else "${photos.size} photo(s)") {
                 BoxWithConstraints(Modifier.fillMaxWidth()) {
                     val tile = (maxWidth - 21.dp) / 3
@@ -245,24 +246,24 @@ fun VisitFormScreen(db: ClinicDb, visitId: Long, patientId: Long, onBack: () -> 
                         photos.forEachIndexed { i, path ->
                             key(path) {
                                 Box(Modifier.size(tile)) {
-                                    PhotoImage(path, Modifier.fillMaxSize().clip(RoundedCornerShape(16.dp)).clickable { viewerIndex = i })
+                                    PhotoImage(path, Modifier.fillMaxSize().clip(RoundedCornerShape(18.dp)).clickable { viewerIndex = i })
                                     Box(
-                                        Modifier.align(Alignment.TopEnd).padding(6.dp).size(26.dp).clip(CircleShape)
+                                        Modifier.align(Alignment.TopEnd).padding(6.dp).size(28.dp).clip(CircleShape)
                                             .background(Color(0x99000000))
                                             .clickable {
                                                 photos.remove(path)
                                                 removedPhotos.add(path)
                                             },
                                         contentAlignment = Alignment.Center
-                                    ) { Icon(Icons.Filled.Close, null, tint = Color.White, modifier = Modifier.size(15.dp)) }
+                                    ) { Icon(Icons.Filled.Close, null, tint = Color.White, modifier = Modifier.size(16.dp)) }
                                 }
                             }
                         }
                     }
                 }
             }
-
-            // Payment
+        }
+        val paymentCard: @Composable () -> Unit = {
             FormCard("Payment") {
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     AppField(
@@ -280,30 +281,26 @@ fun VisitFormScreen(db: ClinicDb, visitId: Long, patientId: Long, onBack: () -> 
                 val f = fees.toDoubleOrNull() ?: 0.0
                 val p = paid.toDoubleOrNull() ?: 0.0
                 Row(
-                    Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
-                        .background(if (f - p > 0) Brand.RedSoft else Brand.Mint).padding(14.dp),
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp))
+                        .background(if (f - p > 0) Brand.RedSoft else Brand.GreenSoft).padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(Modifier.weight(1f)) {
                         Text("Remaining", fontSize = 12.sp, color = Brand.Sub)
                         Text(
-                            rs(maxOf(0.0, f - p)), fontWeight = FontWeight.Bold, fontSize = 22.sp,
-                            color = if (f - p > 0) Brand.Red else Brand.PrimaryDark
+                            rs(maxOf(0.0, f - p)), fontWeight = FontWeight.Bold, fontSize = 24.sp,
+                            color = if (f - p > 0) Brand.Red else Brand.GreenText
                         )
                     }
                     if (f > 0 && p < f) {
-                        Text(
-                            "Mark fully paid", color = Brand.PrimaryDark, fontWeight = FontWeight.SemiBold, fontSize = 13.sp,
-                            modifier = Modifier.clip(RoundedCornerShape(50)).background(Color.White)
-                                .clickable { paid = fees }.padding(horizontal = 14.dp, vertical = 8.dp)
-                        )
+                        SoftButton("Mark fully paid", Icons.Filled.Check, bg = Color.White, height = 44.dp) { paid = fees }
                     } else if (f > 0) {
-                        Pill("Fully paid", Color.White, Brand.PrimaryDark, Icons.Filled.Check)
+                        Pill("Fully paid", Color.White, Brand.GreenText, Icons.Filled.Check)
                     }
                 }
             }
-
-            // Next visit
+        }
+        val nextVisitCard: @Composable () -> Unit = {
             FormCard("Next visit", if (nextVisit > 0L) fmtDayLong(nextVisit) else "Not scheduled") {
                 val today = todayEpochDay()
                 val quick = listOf(
@@ -316,16 +313,60 @@ fun VisitFormScreen(db: ClinicDb, visitId: Long, patientId: Long, onBack: () -> 
                     ChoiceChip(if (custom) fmtDay(nextVisit) else "Pick date", custom) { pickDateFor = "next" }
                 }
             }
-            Spacer(Modifier.height(8.dp))
         }
-        BottomActionBar {
-            if (existing != null) {
-                CircleIconButton(Icons.Filled.Delete, { askDelete = true }, bg = Brand.RedSoft, tint = Brand.Red, size = 56.dp)
+
+        Column(Modifier.fillMaxSize().imePadding()) {
+            AppTopBar(if (existing == null) "New Visit" else "Edit Visit", patientName, onBack)
+            if (twoColumn) {
+                Row(
+                    Modifier.weight(1f).fillMaxWidth().padding(horizontal = 24.dp),
+                    horizontalArrangement = Arrangement.spacedBy(20.dp)
+                ) {
+                    Column(
+                        Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()).padding(vertical = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(18.dp)
+                    ) {
+                        dateCard()
+                        treatmentCard()
+                        teethCard()
+                    }
+                    Column(
+                        Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()).padding(vertical = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(18.dp)
+                    ) {
+                        problemCard()
+                        photosCard()
+                        paymentCard()
+                        nextVisitCard()
+                    }
+                }
+            } else {
+                Column(
+                    Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())
+                        .padding(horizontal = 20.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    dateCard()
+                    treatmentCard()
+                    teethCard()
+                    problemCard()
+                    photosCard()
+                    paymentCard()
+                    nextVisitCard()
+                }
             }
-            GradientButton(
-                if (existing == null) "Save Visit" else "Save Changes",
-                Modifier.weight(1f), Icons.Filled.Check
-            ) { save() }
+            BottomActionBar {
+                if (existing != null) {
+                    CircleIconButton(Icons.Filled.Delete, { askDelete = true }, bg = Brand.RedSoft, tint = Brand.Red, size = 56.dp)
+                }
+                val label = if (existing == null) "Save Visit" else "Save Changes"
+                if (twoColumn) {
+                    Spacer(Modifier.weight(1f))
+                    GradientButton(label, Modifier.width(340.dp), Icons.Filled.Check) { save() }
+                } else {
+                    GradientButton(label, Modifier.weight(1f), Icons.Filled.Check) { save() }
+                }
+            }
         }
     }
 
@@ -348,7 +389,13 @@ fun VisitFormScreen(db: ClinicDb, visitId: Long, patientId: Long, onBack: () -> 
     if (askDelete && existing != null) ConfirmDialog(
         "Delete this visit?",
         "This visit, its photos and its payments will be permanently deleted.",
-        onConfirm = { db.deleteVisit(existing); askDelete = false; onBack() },
+        onConfirm = {
+            askDelete = false
+            db.deleteVisit(existing)
+            DataBus.changed()
+            notify("Visit deleted")
+            onBack()
+        },
         onDismiss = { askDelete = false }
     )
 }
@@ -356,11 +403,11 @@ fun VisitFormScreen(db: ClinicDb, visitId: Long, patientId: Long, onBack: () -> 
 @Composable
 private fun AddTile(label: String, icon: ImageVector, size: Dp, onClick: () -> Unit) {
     Column(
-        Modifier.size(size).clip(RoundedCornerShape(16.dp)).background(Brand.Mint)
+        Modifier.size(size).clip(RoundedCornerShape(18.dp)).background(Brand.GreenSoft)
             .drawBehind {
                 drawRoundRect(
-                    color = Brand.Primary.copy(alpha = 0.5f),
-                    cornerRadius = CornerRadius(16.dp.toPx()),
+                    color = Brand.Green.copy(alpha = 0.6f),
+                    cornerRadius = CornerRadius(18.dp.toPx()),
                     style = Stroke(width = 1.5.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(14f, 10f)))
                 )
             }
@@ -368,9 +415,9 @@ private fun AddTile(label: String, icon: ImageVector, size: Dp, onClick: () -> U
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Icon(icon, null, tint = Brand.Primary, modifier = Modifier.size(28.dp))
+        Icon(icon, null, tint = Brand.GreenDeep, modifier = Modifier.size(30.dp))
         Spacer(Modifier.height(6.dp))
-        Text(label, color = Brand.PrimaryDark, fontWeight = FontWeight.Medium, fontSize = 13.sp)
+        Text(label, color = Brand.GreenText, fontWeight = FontWeight.Medium, fontSize = 13.sp)
     }
 }
 
@@ -391,7 +438,7 @@ fun DatePick(initialDay: Long, onDismiss: () -> Unit, onPick: (Long) -> Unit) {
                 val millis = state.selectedDateMillis
                 if (millis != null) onPick(Instant.ofEpochMilli(millis).atZone(ZoneOffset.UTC).toLocalDate().toEpochDay())
                 onDismiss()
-            }) { Text("OK", color = Brand.Primary, fontWeight = FontWeight.SemiBold) }
+            }) { Text("OK", color = Brand.GreenDeep, fontWeight = FontWeight.SemiBold) }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel", color = Brand.Sub) } }
     ) {
@@ -448,7 +495,7 @@ private fun ToothArch(
                 Modifier.offset(x = x.dp, y = y.dp).size(tooth)
                     .clip(CircleShape)
                     .background(if (isSelected) BrandGradient else SolidColor(Color.White))
-                    .border(1.5.dp, if (isSelected) Brand.Primary else Brand.Line, CircleShape)
+                    .border(1.5.dp, if (isSelected) Brand.GreenDeep else Brand.Line, CircleShape)
                     .clickable {
                         haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                         onToggle(label)
@@ -611,12 +658,12 @@ fun PhotoViewer(photos: List<String>, start: Int, onClose: () -> Unit) {
                     CircleIconButton(
                         Icons.AutoMirrored.Filled.KeyboardArrowLeft,
                         { index = (index - 1 + photos.size) % photos.size },
-                        bg = Color(0x33FFFFFF), tint = Color.White, size = 52.dp
+                        bg = Color(0x33FFFFFF), tint = Color.White, size = 54.dp
                     )
                     CircleIconButton(
                         Icons.AutoMirrored.Filled.KeyboardArrowRight,
                         { index = (index + 1) % photos.size },
-                        bg = Color(0x33FFFFFF), tint = Color.White, size = 52.dp
+                        bg = Color(0x33FFFFFF), tint = Color.White, size = 54.dp
                     )
                 }
             }
