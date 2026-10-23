@@ -93,6 +93,7 @@ fun ClinicApp(db: ClinicDb) {
     CompositionLocalProvider(LocalNotify provides notify) {
         BoxWithConstraints(Modifier.fillMaxSize().background(Brand.Bg)) {
             val wide = maxWidth >= 700.dp
+            val sidebarWidth = if (maxWidth >= 1100.dp) 380.dp else 330.dp
             val entry = NavEntry(stack.size, stack.last())
             if (wide) {
                 val selectedId = stack.asReversed().firstNotNullOfOrNull { s ->
@@ -105,7 +106,7 @@ fun ClinicApp(db: ClinicDb) {
                 Row(Modifier.fillMaxSize()) {
                     Sidebar(
                         db = db,
-                        width = if (maxWidth >= 1100.dp) 380.dp else 330.dp,
+                        width = sidebarWidth,
                         dashboardActive = stack.size == 1,
                         backupActive = stack.last() is Screen.BackupPage,
                         selectedId = selectedId,
