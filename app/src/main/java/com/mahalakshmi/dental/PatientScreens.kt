@@ -57,8 +57,8 @@ import java.util.Locale
 import kotlin.math.roundToInt
 
 val medicalOptions = listOf(
-    "Diabetes", "Blood Pressure", "Heart Problem", "Allergy",
-    "Asthma", "Thyroid", "Pregnant", "Blood Thinners"
+    "Checkup", "Toothache", "Cleaning", "Filling", "Root Canal",
+    "Extraction", "Braces", "Cap / Crown", "Denture", "Implant"
 )
 
 // ───────────── New / edit patient ─────────────
