@@ -33,6 +33,15 @@ jobs:
             git push
           fi
 
+      - name: Download fonts
+        run: |
+          mkdir -p app/src/main/res/font
+          for w in Regular Medium SemiBold Bold; do
+            name=$(echo "$w" | tr '[:upper:]' '[:lower:]')
+            curl -fsSL -o "app/src/main/res/font/poppins_$name.ttf" \
+              "https://raw.githubusercontent.com/google/fonts/main/ofl/poppins/Poppins-$w.ttf"
+          done
+
       - name: Build the APK
         run: |
           wget -q https://services.gradle.org/distributions/gradle-8.11.1-bin.zip
