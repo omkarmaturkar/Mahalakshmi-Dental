@@ -1,0 +1,46 @@
+name: Build APK
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get the code
+        uses: actions/checkout@v5
+
+      - name: Install Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Create signing key (first time only)
+        run: |
+          if [ ! -f app/clinic.keystore ]; then
+            keytool -genkeypair -keystore app/clinic.keystore -alias clinic \
+              -keyalg RSA -keysize 2048 -validity 36500 \
+              -storepass mahalakshmi123 -keypass mahalakshmi123 \
+              -dname "CN=Mahalakshmi Dental Clinic, C=IN"
+            git config user.name "github-actions"
+            git config user.email "github-actions@users.noreply.github.com"
+            git add app/clinic.keystore
+            git commit -m "Add signing key"
+            git push
+          fi
+
+      - name: Build the APK
+        run: |
+          wget -q https://services.gradle.org/distributions/gradle-8.11.1-bin.zip
+          unzip -q gradle-8.11.1-bin.zip -d $HOME/gradle
+          $HOME/gradle/gradle-8.11.1/bin/gradle assembleRelease --no-daemon
+
+      - name: Upload the APK
+        uses: actions/upload-artifact@v6
+        with:
+          name: Mahalakshmi-Dental-APK
+          path: app/build/outputs/apk/release/*.apk
