@@ -130,4 +130,25 @@ fun SplashScreen(onFinished: () -> Unit) {
                     color = Brand.Charcoal, letterSpacing = spacing.value.sp
                 )
                 Text(
-                    "DENTAL CLINIC", fontWeight = FontWeight.SemiBold, fontSize
+                    "DENTAL CLINIC", fontWeight = FontWeight.SemiBold, fontSize = if (big) 16.sp else 13.sp,
+                    color = Brand.GreenDeep, letterSpacing = (4f + spacing.value * 0.6f).sp
+                )
+            }
+            Spacer(Modifier.height(20.dp))
+            Text(
+                "Caring for every smile", fontSize = 14.sp, color = Brand.Faint,
+                modifier = Modifier.graphicsLayer { alpha = tagAlpha.value }
+            )
+        }
+    }
+}
+
+private fun sparklePath(c: Offset, r: Float): Path = Path().apply {
+    val k = r * 0.14f
+    moveTo(c.x, c.y - r)
+    cubicTo(c.x + k, c.y - k, c.x + k, c.y - k, c.x + r, c.y)
+    cubicTo(c.x + k, c.y + k, c.x + k, c.y + k, c.x, c.y + r)
+    cubicTo(c.x - k, c.y + k, c.x - k, c.y + k, c.x - r, c.y)
+    cubicTo(c.x - k, c.y - k, c.x - k, c.y - k, c.x, c.y - r)
+    close()
+}
