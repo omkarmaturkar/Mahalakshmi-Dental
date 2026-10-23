@@ -33,6 +33,29 @@ jobs:
             git push
           fi
 
+      - name: Show SHA-1 (needed once for Google Drive setup)
+        run: keytool -list -v -keystore app/clinic.keystore -alias clinic -storepass mahalakshmi123 | grep -E "SHA1|SHA256"
+
+      - name: Add clinic logo
+        run: |
+          shopt -s nullglob nocaseglob
+          files=( *.png *.jpg *.jpeg *.webp )
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "::error::Logo not found. Upload your logo image (PNG or JPG) to the main page of the repository."
+            exit 1
+          fi
+          logo="${files[0]}"
+          mime=$(file --mime-type -b "$logo")
+          case "$mime" in
+            image/png) ext=png ;;
+            image/jpeg) ext=jpg ;;
+            image/webp) ext=webp ;;
+            *) echo "::error::The logo must be a PNG or JPG image (found $mime)."; exit 1 ;;
+          esac
+          mkdir -p app/src/main/res/drawable-xxhdpi
+          cp "$logo" "app/src/main/res/drawable-xxhdpi/clinic_logo.$ext"
+          echo "Using logo: $logo"
+
       - name: Download fonts
         run: |
           mkdir -p app/src/main/res/font
