@@ -55,9 +55,11 @@ class MainActivity : ComponentActivity() {
 sealed class Screen {
     object Home : Screen()
     object BackupPage : Screen()
+    object ClinicSettings : Screen()
     data class PatientForm(val patientId: Long = 0) : Screen()
     data class PatientDetail(val patientId: Long) : Screen()
     data class VisitForm(val patientId: Long, val visitId: Long = 0) : Screen()
+    data class RxForm(val patientId: Long, val visitId: Long) : Screen()
 }
 
 data class NavEntry(val depth: Int, val screen: Screen)
@@ -100,6 +102,7 @@ fun ClinicApp(db: ClinicDb) {
                     when (s) {
                         is Screen.PatientDetail -> s.patientId
                         is Screen.VisitForm -> s.patientId
+                        is Screen.RxForm -> s.patientId
                         else -> null
                     }
                 }
@@ -109,9 +112,11 @@ fun ClinicApp(db: ClinicDb) {
                         width = sidebarWidth,
                         dashboardActive = stack.size == 1,
                         backupActive = stack.last() is Screen.BackupPage,
+                        settingsActive = stack.last() is Screen.ClinicSettings,
                         selectedId = selectedId,
                         onDashboard = { open(null) },
                         onBackup = { open(Screen.BackupPage) },
+                        onSettings = { open(Screen.ClinicSettings) },
                         onNewPatient = { open(Screen.PatientForm()) },
                         onPatient = { id -> open(Screen.PatientDetail(id)) }
                     )
@@ -185,5 +190,7 @@ private fun ScreenHost(
         }
         is Screen.PatientDetail -> PatientDetailScreen(db, screen.patientId, go, back)
         is Screen.VisitForm -> VisitFormScreen(db, screen.visitId, screen.patientId, back)
+        is Screen.ClinicSettings -> ClinicSettingsScreen(db, back)
+        is Screen.RxForm -> PrescriptionScreen(db, screen.patientId, screen.visitId, back)
     }
 }
