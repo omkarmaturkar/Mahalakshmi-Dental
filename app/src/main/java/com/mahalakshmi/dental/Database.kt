@@ -61,7 +61,7 @@ data class Stats(
     val patientCount: Int
 )
 
-class ClinicDb(private val context: Context) : SQLiteOpenHelper(context, NAME, null, 2) {
+class ClinicDb(private val context: Context) : SQLiteOpenHelper(context, NAME, null, 3) {
     companion object { const val NAME = "clinic.db" }
 
     // Keeps all data in one file, which makes backups simple and safe
@@ -81,6 +81,7 @@ class ClinicDb(private val context: Context) : SQLiteOpenHelper(context, NAME, n
                 "next_visit INTEGER DEFAULT 0, pay_mode TEXT)"
         )
         createPayments(db)
+        createExtraTables(db)
     }
 
     private fun createPayments(db: SQLiteDatabase) {
@@ -90,7 +91,7 @@ class ClinicDb(private val context: Context) : SQLiteOpenHelper(context, NAME, n
         )
     }
 
-    // Upgrades data from the first version of the app
+    // Upgrades data from older versions of the app
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
         if (oldVersion < 2) {
             db.execSQL("ALTER TABLE patients ADD COLUMN medical TEXT")
@@ -104,6 +105,8 @@ class ClinicDb(private val context: Context) : SQLiteOpenHelper(context, NAME, n
                     "SELECT patient_id, id, paid, date, '' FROM visits WHERE paid > 0"
             )
         }
+        // Version 3: clinic details, prescriptions and prescription templates
+        createExtraTables(db)
     }
 
     // ---------- Patients ----------
@@ -157,6 +160,7 @@ class ClinicDb(private val context: Context) : SQLiteOpenHelper(context, NAME, n
 
     fun deletePatient(id: Long) {
         getVisits(id).forEach { deleteVisit(it) }
+        deletePatientExtras(id)
         writableDatabase.delete("payments", "patient_id = ?", arrayOf(id.toString()))
         writableDatabase.delete("patients", "id = ?", arrayOf(id.toString()))
     }
@@ -209,6 +213,7 @@ class ClinicDb(private val context: Context) : SQLiteOpenHelper(context, NAME, n
 
     fun deleteVisit(v: Visit) {
         v.photos.forEach { File(it).delete() }
+        deleteVisitExtras(v.id)
         writableDatabase.delete("payments", "visit_id = ?", arrayOf(v.id.toString()))
         writableDatabase.delete("visits", "id = ?", arrayOf(v.id.toString()))
     }
