@@ -387,6 +387,8 @@ fun HomeCompact(db: ClinicDb, go: (Screen) -> Unit) {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Box(Modifier.weight(1f)) { BrandRow(compact = true) }
+                    CircleIconButton(DocIcons.Settings, { go(Screen.ClinicSettings) })
+                    Spacer(Modifier.width(10.dp))
                     BackupChip(compact = true) { go(Screen.BackupPage) }
                 }
             }
@@ -548,9 +550,11 @@ fun Sidebar(
     width: Dp,
     dashboardActive: Boolean,
     backupActive: Boolean,
+    settingsActive: Boolean,
     selectedId: Long?,
     onDashboard: () -> Unit,
     onBackup: () -> Unit,
+    onSettings: () -> Unit,
     onNewPatient: () -> Unit,
     onPatient: (Long) -> Unit
 ) {
@@ -569,6 +573,7 @@ fun Sidebar(
         Column(Modifier.padding(horizontal = 14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             NavItem("Dashboard", Icons.Filled.Home, dashboardActive, onClick = onDashboard)
             NavItem("Backup", AppIcons.Cloud, backupActive, dot = if (backupWarn) Brand.Gold else null, onClick = onBackup)
+            NavItem("Clinic details", DocIcons.Settings, settingsActive, onClick = onSettings)
         }
         HorizontalDivider(Modifier.padding(horizontal = 22.dp, vertical = 14.dp), color = Brand.Line)
         Row(Modifier.padding(horizontal = 22.dp), verticalAlignment = Alignment.CenterVertically) {
