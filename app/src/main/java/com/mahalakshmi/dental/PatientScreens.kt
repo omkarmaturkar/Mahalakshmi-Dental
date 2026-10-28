@@ -227,6 +227,7 @@ fun PatientDetailScreen(db: ClinicDb, patientId: Long, go: (Screen) -> Unit, onB
                         if (patient.alerts.isNotEmpty()) AlertCard(patient.alerts)
                         if (patient.notes.isNotBlank()) NotesCard(patient.notes)
                         PaymentCard(patient) { payAll = true }
+                        PatientDocumentsCard(db, patient, visits, go)
                     }
                     Column(Modifier.weight(1f).fillMaxHeight()) {
                         Row(
@@ -268,6 +269,9 @@ fun PatientDetailScreen(db: ClinicDb, patientId: Long, go: (Screen) -> Unit, onB
                         }
                         item(key = "pay") {
                             Box(Modifier.padding(bottom = 24.dp)) { PaymentCard(patient) { payAll = true } }
+                        }
+                        item(key = "docs") {
+                            Box(Modifier.padding(bottom = 24.dp)) { PatientDocumentsCard(db, patient, visits, go) }
                         }
                         item(key = "history") {
                             SectionHeader("Treatment history", Modifier.padding(bottom = 14.dp))
